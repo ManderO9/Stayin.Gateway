@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Primitives;
 using System.Buffers;
+using System.IO.Pipelines;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -12,50 +14,55 @@ var services = new List<(string path, string url)>()
 };
 
 
-app.MapFallback(async (context) =>
+// TODO: Add authorization before sending any request
+// For all routes that hit the app
+app.MapFallback(async (HttpRequest Request, HttpResponse Response) =>
 {
-
+    // For each microservice we registered in our services
     foreach(var service in services)
     {
-        if(context.Request.Path.Value is not null &&
-            context.Request.Path.Value.StartsWith(service.path, StringComparison.OrdinalIgnoreCase))
+        // If the request path starts with the microservice path
+        if(Request.Path.Value is not null &&
+            Request.Path.Value.StartsWith(service.path, StringComparison.OrdinalIgnoreCase))
         {
+            // Create a new http request
             var newRequest = new HttpRequestMessage();
 
-            newRequest.Method = new HttpMethod(context.Request.Method);
-            newRequest.RequestUri = new Uri(service.url + context.Request.Path.Value.Substring(service.path.Length));
+            // Set the method of the request
+            newRequest.Method = new HttpMethod(Request.Method);
+            
+            // Set the uri of the request
+            newRequest.RequestUri = new Uri(service.url + Request.Path.Value.Substring(service.path.Length));
 
-            foreach(var header in context.Request.Headers)
-            {
+            // Add all the requests headers to the new request
+            foreach(var header in Request.Headers)
                 newRequest.Headers.Add(header.Key, header.Value.AsEnumerable());
-            }
 
-            var readResult = await context.Request .BodyReader.ReadAsync();
+            // Set the content of the request
+            newRequest.Content = new StreamContent(Request.BodyReader.AsStream());
 
-            newRequest.Content = new ByteArrayContent(readResult.Buffer.ToArray());
-
+            // Send the request to the microservice and get a response
+            // TODO: try catch this b
             var response = await httpClient.SendAsync(newRequest);
 
+            // Set the status code of the response to return
+            Response.StatusCode = ((int)response.StatusCode);
 
-
-            context.Response.StatusCode = ((int)response.StatusCode);
-
+            // Add the response headers to the response
             foreach(var header in response.Headers)
-            {
-                context.Response.Headers.Add(header.Key, new Microsoft.Extensions.Primitives.StringValues(header.Value.ToArray()));
-            }
+                Response.Headers.Append(header.Key, new StringValues(header.Value.ToArray()));
 
-            await context.Response.Body.WriteAsync((await response.Content.ReadAsByteArrayAsync()));
+            // Write the response body to the response we want to return
+            await response.Content.CopyToAsync(Response.Body);
+
+            // Stop the request here
             return;
         }
     }
 
-
-    await context.Response.WriteAsync($"Requested Path: [{context.Request.Path}]" +
+    // If we matched no microservice, return an error
+    await Response.WriteAsync($"Requested Path: [{Request.Path}]" +
         " -- The requested path doesn't exist, something went wrong");
-
-
-
 
 });
 
