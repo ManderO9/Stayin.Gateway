@@ -3,7 +3,14 @@ using Microsoft.Net.Http.Headers;
 using System.Buffers;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
+var corsPolicy = "someCorsPolicy";
+builder.Services.AddCors((options) =>
+    { options.AddPolicy(corsPolicy, policy => { policy.WithOrigins("*").WithHeaders("*").WithMethods("*"); }); });
+
 var app = builder.Build();
+app.UseCors(corsPolicy);
 
 var httpClient = new HttpClient();
 
