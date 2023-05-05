@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Primitives;
+using Microsoft.Net.Http.Headers;
 using System.Buffers;
-using System.IO.Pipelines;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -12,7 +12,6 @@ var services = new List<(string path, string url)>()
     ("/auth", "https://localhost:7000"),
     ("/reservation", "https://localhost:5010"),
 };
-
 
 // TODO: Add authorization before sending any request
 // For all routes that hit the app
@@ -30,30 +29,52 @@ app.MapFallback(async (HttpRequest Request, HttpResponse Response) =>
 
             // Set the method of the request
             newRequest.Method = new HttpMethod(Request.Method);
-            
+
             // Set the uri of the request
             newRequest.RequestUri = new Uri(service.url + Request.Path.Value.Substring(service.path.Length));
-
-            // Add all the requests headers to the new request
-            foreach(var header in Request.Headers)
-                newRequest.Headers.Add(header.Key, header.Value.AsEnumerable());
 
             // Set the content of the request
             newRequest.Content = new StreamContent(Request.BodyReader.AsStream());
 
+            // Add all the requests headers to the new request
+            foreach(var header in Request.Headers)
+            {
+                // If the header is a content header
+                if(header.Key.Equals(HeaderNames.ContentType, StringComparison.OrdinalIgnoreCase) ||
+                    header.Key.Equals(HeaderNames.ContentDisposition, StringComparison.OrdinalIgnoreCase) ||
+                    header.Key.Equals(HeaderNames.ContentEncoding, StringComparison.OrdinalIgnoreCase) ||
+                    header.Key.Equals(HeaderNames.ContentLanguage, StringComparison.OrdinalIgnoreCase) ||
+                    header.Key.Equals(HeaderNames.ContentMD5, StringComparison.OrdinalIgnoreCase) ||
+                    header.Key.Equals(HeaderNames.ContentRange, StringComparison.OrdinalIgnoreCase) ||
+                    header.Key.Equals(HeaderNames.ContentLocation, StringComparison.OrdinalIgnoreCase) ||
+                    header.Key.Equals(HeaderNames.ContentLength, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Add it to the content headers
+                    newRequest.Content.Headers.Add(header.Key, header.Value.AsEnumerable());
+                }
+                // Otherwise...
+                else
+                    // Add it to the request headers
+                    newRequest.Headers.Add(header.Key, header.Value.AsEnumerable());
+            }
+
+
             // Send the request to the microservice and get a response
             // TODO: try catch this b
-            var response = await httpClient.SendAsync(newRequest);
+            var serviceResponse = await httpClient.SendAsync(newRequest);
 
             // Set the status code of the response to return
-            Response.StatusCode = ((int)response.StatusCode);
+            Response.StatusCode = ((int)serviceResponse.StatusCode);
 
-            // Add the response headers to the response
-            foreach(var header in response.Headers)
+            // Add the service response headers to the response
+            foreach(var header in serviceResponse.Headers)
                 Response.Headers.Append(header.Key, new StringValues(header.Value.ToArray()));
 
-            // Write the response body to the response we want to return
-            await response.Content.CopyToAsync(Response.Body);
+            // Remove transfer encoding header cuz it gets removed by httpClient.SendAsync()
+            Response.Headers.Remove(HeaderNames.TransferEncoding);
+
+            // Write the service response body to the response we want to return
+            await serviceResponse.Content.CopyToAsync(Response.Body);
 
             // Stop the request here
             return;
@@ -61,9 +82,7 @@ app.MapFallback(async (HttpRequest Request, HttpResponse Response) =>
     }
 
     // If we matched no microservice, return an error
-    await Response.WriteAsync($"Requested Path: [{Request.Path}]" +
-        " -- The requested path doesn't exist, something went wrong");
-
+    await Response.WriteAsync($"Requested Path: [{Request.Path}] doesn't exist");
 });
 
 app.Run();
