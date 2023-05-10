@@ -16,7 +16,7 @@ var httpClient = new HttpClient();
 
 var services = new List<(string path, string url)>()
 {
-    ("/auth", "https://localhost:7000"),
+    ("/auth", Environment.GetEnvironmentVariable("AuthApp")!),
     ("/reservation", "https://localhost:5010"),
 };
 
