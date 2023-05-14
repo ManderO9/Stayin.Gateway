@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 using System.Buffers;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,10 +15,11 @@ app.UseCors(corsPolicy);
 
 var httpClient = new HttpClient();
 
-var services = new List<(string path, string url)>()
+var services = new List<Service>()
 {
-    ("/auth", Environment.GetEnvironmentVariable("AuthApp")!),
-    ("/reservation", "https://localhost:5010"),
+    new Service("/auth",  new() { Environment.GetEnvironmentVariable("AuthApp")! }),
+    new Service("/storage",  new() { Environment.GetEnvironmentVariable("StorageApp")! }),
+    new Service("/reservation", new() { "https://localhost:5010" }),
 };
 
 // TODO: Add authorization before sending any request
@@ -29,7 +31,7 @@ app.MapFallback(async (HttpRequest Request, HttpResponse Response) =>
     {
         // If the request path starts with the microservice path
         if(Request.Path.Value is not null &&
-            Request.Path.Value.StartsWith(service.path, StringComparison.OrdinalIgnoreCase))
+            Request.Path.Value.StartsWith(service.Prefix, StringComparison.OrdinalIgnoreCase))
         {
             // Create a new http request
             var newRequest = new HttpRequestMessage();
@@ -38,7 +40,7 @@ app.MapFallback(async (HttpRequest Request, HttpResponse Response) =>
             newRequest.Method = new HttpMethod(Request.Method);
 
             // Set the uri of the request
-            newRequest.RequestUri = new Uri(service.url + Request.Path.Value.Substring(service.path.Length));
+            newRequest.RequestUri = new Uri(service.GetUrl() + Request.Path.Value.Substring(service.Prefix.Length));
 
             // Set the content of the request
             newRequest.Content = new StreamContent(Request.BodyReader.AsStream());
@@ -66,25 +68,38 @@ app.MapFallback(async (HttpRequest Request, HttpResponse Response) =>
             }
 
 
-            // Send the request to the microservice and get a response
-            // TODO: try catch this b
-            var serviceResponse = await httpClient.SendAsync(newRequest);
+            try
+            {
+                // Send the request to the microservice and get a response
+                var serviceResponse = await httpClient.SendAsync(newRequest);
 
-            // Set the status code of the response to return
-            Response.StatusCode = ((int)serviceResponse.StatusCode);
+                // Set the status code of the response to return
+                Response.StatusCode = ((int)serviceResponse.StatusCode);
 
-            // Add the service response headers to the response
-            foreach(var header in serviceResponse.Headers)
-                Response.Headers.Append(header.Key, new StringValues(header.Value.ToArray()));
+                // Add the service response headers to the response
+                foreach(var header in serviceResponse.Headers)
+                    Response.Headers.Append(header.Key, new StringValues(header.Value.ToArray()));
 
-            // Remove transfer encoding header cuz it gets removed by httpClient.SendAsync()
-            Response.Headers.Remove(HeaderNames.TransferEncoding);
+                // Add content headers to the response
+                foreach(var header in serviceResponse.Content.Headers)
+                    Response.Headers.Append(header.Key, new StringValues(header.Value.ToArray()));
 
-            // Write the service response body to the response we want to return
-            await serviceResponse.Content.CopyToAsync(Response.Body);
+                // Remove transfer encoding header cuz it gets removed by httpClient.SendAsync()
+                Response.Headers.Remove(HeaderNames.TransferEncoding);
 
-            // Stop the request here
-            return;
+                // Write the service response body to the response we want to return
+                await serviceResponse.Content.CopyToAsync(Response.Body);
+
+                // Stop the request here
+                return;
+            }
+            // If there was an error sending the request
+            catch(HttpRequestException)
+            {
+                // Return an error, indicating the service is not available
+                Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                return;
+            }
         }
     }
 
