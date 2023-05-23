@@ -15,12 +15,33 @@ app.UseCors(corsPolicy);
 
 var httpClient = new HttpClient();
 
+// Create the list of microservices
 var services = new List<Service>()
 {
-    new Service("/auth",  new() { Environment.GetEnvironmentVariable("AuthApp")! }),
-    new Service("/storage",  new() { Environment.GetEnvironmentVariable("StorageApp")! }),
-    new Service("/reservation", new() { "https://localhost:5010" }),
 };
+
+// If we are not in production environment
+if(app.Environment.IsDevelopment())
+{
+    // Add dev services
+    services.AddRange(new[]{
+        new Service("/auth", new() { "http://localhost:7000" }),
+        new Service("/storage", new() { "http://localhost:6000" }),
+        new Service("/ms-reservation", new() { "http://localhost:8800" }),
+        new Service("/appartement", new() { "http://localhost:8800" }),
+    });
+}
+// Otherwise...
+else
+{
+    // Add production services
+    services.AddRange(new[]{
+        new Service("/auth", new() { Environment.GetEnvironmentVariable("AuthApp")! }),
+        new Service("/storage", new() { Environment.GetEnvironmentVariable("StorageApp")! }),
+        new Service("/ms-reservation", new() { Environment.GetEnvironmentVariable("ReservationApp")! }),
+        new Service("/ms-appartement", new() { Environment.GetEnvironmentVariable("AppartementApp")! }),
+    });
+}
 
 // TODO: Add authorization before sending any request
 // For all routes that hit the app
