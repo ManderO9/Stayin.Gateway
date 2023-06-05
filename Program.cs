@@ -108,8 +108,15 @@ app.MapFallback(async (HttpRequest Request, HttpResponse Response) =>
                 // Remove transfer encoding header cuz it gets removed by httpClient.SendAsync()
                 Response.Headers.Remove(HeaderNames.TransferEncoding);
 
-                // Write the service response body to the response we want to return
-                await serviceResponse.Content.CopyToAsync(Response.Body);
+                // If the request is not a redirect
+                if(serviceResponse.StatusCode != HttpStatusCode.Redirect &&
+                    serviceResponse.StatusCode != HttpStatusCode.RedirectKeepVerb &&
+                    serviceResponse.StatusCode != HttpStatusCode.RedirectMethod &&
+                    serviceResponse.StatusCode != HttpStatusCode.PermanentRedirect &&
+                    serviceResponse.StatusCode != HttpStatusCode.TemporaryRedirect)
+
+                    // Write the service response body to the response we want to return
+                    await serviceResponse.Content.CopyToAsync(Response.Body);
 
                 // Stop the request here
                 return;
