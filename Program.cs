@@ -109,11 +109,7 @@ app.MapFallback(async (HttpRequest Request, HttpResponse Response) =>
                 Response.Headers.Remove(HeaderNames.TransferEncoding);
 
                 // If the request is not a redirect
-                if(serviceResponse.StatusCode != HttpStatusCode.Redirect &&
-                    serviceResponse.StatusCode != HttpStatusCode.RedirectKeepVerb &&
-                    serviceResponse.StatusCode != HttpStatusCode.RedirectMethod &&
-                    serviceResponse.StatusCode != HttpStatusCode.PermanentRedirect &&
-                    serviceResponse.StatusCode != HttpStatusCode.TemporaryRedirect)
+                if(((int)serviceResponse.StatusCode / 100) != 3)
 
                     // Write the service response body to the response we want to return
                     await serviceResponse.Content.CopyToAsync(Response.Body);
