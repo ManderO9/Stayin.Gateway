@@ -28,7 +28,8 @@ if(app.Environment.IsDevelopment())
         new Service("/auth", new() { "http://localhost:7000" }),
         new Service("/storage", new() { "http://localhost:6000" }),
         new Service("/ms-reservation", new() { "http://localhost:8800" }),
-        new Service("/appartement", new() { "http://localhost:8800" }),
+        new Service("/appartement", new() { "http://localhost:8801" }),
+        new Service("/payment", new() { "http://localhost:5555" }),
     });
 }
 // Otherwise...
@@ -40,6 +41,7 @@ else
         new Service("/storage", new() { Environment.GetEnvironmentVariable("StorageApp")! }),
         new Service("/ms-reservation", new() { Environment.GetEnvironmentVariable("ReservationApp")! }),
         new Service("/ms-appartement", new() { Environment.GetEnvironmentVariable("AppartementApp")! }),
+        new Service("/payment", new() { Environment.GetEnvironmentVariable("PaymentApp")! }),
     });
 }
 
