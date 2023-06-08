@@ -14,7 +14,9 @@ builder.Services.AddCors((options) =>
 var app = builder.Build();
 app.UseCors(corsPolicy);
 
-var httpClient = new HttpClient();
+
+var handler = new HttpClientHandler() { AllowAutoRedirect = false };
+var httpClient = new HttpClient(handler);
 
 // Create the list of microservices
 var services = new List<Service>()
@@ -42,7 +44,7 @@ else
         new Service("/auth", new() { Environment.GetEnvironmentVariable("AuthApp")! }),
         new Service("/storage", new() { Environment.GetEnvironmentVariable("StorageApp")! }),
         new Service("/ms-reservation", new() { Environment.GetEnvironmentVariable("ReservationApp")! }),
-        new Service("/ms-appartement", new() { Environment.GetEnvironmentVariable("AppartementApp")! }),
+        new Service("/appartement", new() { Environment.GetEnvironmentVariable("AppartementApp")! }),
         new Service("/payment", new() { Environment.GetEnvironmentVariable("PaymentApp")! }),
     });
 }
