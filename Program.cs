@@ -23,17 +23,19 @@ var services = new List<Service>()
 {
 };
 
+var host = "localhost";
+
 // If we are not in production environment
 if(app.Environment.IsDevelopment())
 {
     // Add dev services
     services.AddRange(new[]{
-        new Service("/payment", new() { "http://localhost:5555" }),
-        new Service("/storage", new() { "http://localhost:6000" }),
-        new Service("/auth", new() { "http://localhost:7000" }),
-        new Service("/search", new() { "http://localhost:8000" }),
-        new Service("/appartement", new() { "http://localhost:8800" }),
-        new Service("/ms-reservation", new() { "http://localhost:9000" }),
+        new Service("/payment", new() { $"http://{host}:5555" }),
+        new Service("/storage", new() { $"http://{host}:6000" }),
+        new Service("/auth", new() { $"http://{host}:7000" }),
+        new Service("/search", new() { $"http://{host}:8000" }),
+        new Service("/appartement", new() { $"http://{host}:8800" }),
+        new Service("/ms-reservation", new() { $"http://{host}:9000" }),
     });
 }
 // Otherwise...
