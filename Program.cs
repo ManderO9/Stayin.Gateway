@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 using System.Buffers;
@@ -63,8 +64,16 @@ app.MapFallback(async (HttpRequest Request, HttpResponse Response) =>
             // Set the method of the request
             newRequest.Method = new HttpMethod(Request.Method);
 
+            // Create the request uri
+            var requestUri = service.GetUrl() + Request.Path.Value.Substring(service.Prefix.Length);
+
+            // If there are any query parameters
+            if(Request.Query.Any())
+                // Add them to the request uri
+                requestUri = QueryHelpers.AddQueryString(requestUri, Request.Query);
+
             // Set the uri of the request
-            newRequest.RequestUri = new Uri(service.GetUrl() + Request.Path.Value.Substring(service.Prefix.Length));
+            newRequest.RequestUri = new Uri(requestUri);
 
             // Set the content of the request
             newRequest.Content = new StreamContent(Request.BodyReader.AsStream());
