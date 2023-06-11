@@ -31,7 +31,7 @@ if(app.Environment.IsDevelopment())
         new Service("/payment", new() { "http://localhost:5555" }),
         new Service("/storage", new() { "http://localhost:6000" }),
         new Service("/auth", new() { "http://localhost:7000" }),
-        new Service("/search", new() { "http://localhost:8000" }),
+        new Service("/search", new() { "http://192.168.104.167:8000" }),
         new Service("/appartement", new() { "http://localhost:8800" }),
         new Service("/ms-reservation", new() { "http://localhost:9000" }),
     });
